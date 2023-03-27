@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Index</title>
+    <link rel="stylesheet" href="/assets/bootstrap/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css"/>
+
+    <link rel="stylesheet" href="/assets/v11.7.3/sweetalert2.min.css">
+    <link rel="stylesheet" href="/assets/css/preview-image.css">
+    <link rel="stylesheet" href="/assets/css/custom-style.css">
+</head>
+<body>
+    <div class="container-fluid">
+        <header class="">
+            <div class="col-lg-5 fl-l ">
+                <h1>List of customers</h1>
+            </div>
+            <div class="col-lg-7 fl-l">
+                <div class="col-lg-6 fl-r">
+                    <button class="btn btn-outline-light">
+                        <span th:text="${fullName}"></span>
+                    </button>
+                </div>
+                <div class="col-lg-6 fl-r">
+                    <button class="btn btn-outline-light" id="btnShowCreateModal">
+                        Create customer
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <div class="content">
+            <table id="tbCustomer" class="table table-hover">
+                <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Avatar</th>
+                    <th>Full name</th>
+                    <th>Email</th>
+                    <th>Phone</th>
+                    <th>Province</th>
+                    <th>District</th>
+                    <th>Ward</th>
+                    <th>Address</th>
+                    <th colspan="3">Action</th>
+                </tr>
+                </thead>
+                <tbody>
+                <!-- <tr>
+                    <td>1</td>
+                    <td>NVA</td>
+                    <td>nva@co.cc</td>
+                    <td>2345</td>
+                    <td>28 Nguyễn Tri Phương</td>
+                    <td>0</td>
+                    <td>
+                        <button class="btn btn-outline-secondary">
+                            Edit
+                        </button>
+                    </td>
+                    <td>
+                        <button class="btn btn-outline-success">
+                            Deposit
+                        </button>
+                    </td>
+                    <td>
+                        <button class="btn btn-outline-warning">
+                            Withdraw
+                        </button>
+                    </td>
+                </tr> -->
+                </tbody>
+            </table>
+        </div>
+
+        <th:block th:replace="customer/modal_create" />
+        <th:block th:replace="customer/modal_detail" />
+        <th:block th:replace="customer/modal_update_avatar" />
+    </div>
+
+    <script src="/assets/jquery/jquery-3.6.0.min.js"></script>
+
+    <script src="/assets/bootstrap/js/bootstrap.bundle.min.js"></script>
+
+    <script src="/assets/v11.7.3/sweetalert2.all.min.js"></script>
+
+    <script src="/assets/js/AppBase.js"></script>
+    <script src="/assets/jquery/jquery.validate.min.js"></script>
+
+    <script>
+
+        const page = {
+            urls: {
+                getAllProvinces: AppBase.API_PROVINCE + '/',
+                getAllDistricts: AppBase.API_PROVINCE + '/district',
+                getAllWards: AppBase.API_PROVINCE + '/ward',
+                getAllCustomers: AppBase.API_CUSTOMER,
+                findCustomerById: AppBase.API_CUSTOMER,
+                doCreate: AppBase.API_CUSTOMER,
+                doCreateWithAvatar: AppBase.API_CUSTOMER + '/create-with-avatar',
+                doUpdateWithAvatar: AppBase.API_CUSTOMER + '/update-with-avatar',
+                incrementBalance: AppBase.API_CUSTOMER,
+                decrementBalance: AppBase.API_CUSTOMER,
+                insertDeposit: AppBase.API_DEPOSIT,
+                insertTransfer: AppBase.API_TRANSFER
+            },
+            elements: {},
+            loadData: {},
+            commands: {},
+            dialogs: {
+                elements: {},
+                loadData: {},
+                commands: {},
+            }
+        }
+
+        let currentCustomerId;
+
+        let locationRegion = new LocationRegion();
+        let customerAvatar = new CustomerAvatar();
+        let customer = new Customer();
+
+        page.elements.btnShowCreateModal = $('#btnShowCreateModal');
+
+        page.dialogs.elements.modalCreateCustomer = $('#modalCreateCustomer');
+        page.dialogs.elements.fullNameCre = $('#fullNameCre');
+        page.dialogs.elements.emailCre = $('#emailCre');
+        page.dialogs.elements.phoneCre = $('#phoneCre');
+        page.dialogs.elements.provinceCre = $('#provinceCre');
+        page.dialogs.elements.districtCre = $('#districtCre');
+        page.dialogs.elements.wardCre = $('#wardCre');
+        page.dialogs.elements.addressCre = $('#addressCre');
+
+        page.dialogs.elements.modalUpdateCustomer = $('#modalUpdateCustomer');
+        page.dialogs.elements.fullNameUp = $('#fullNameUp');
+        page.dialogs.elements.emailUp = $('#emailUp');
+        page.dialogs.elements.phoneUp = $('#phoneUp');
+        page.dialogs.elements.provinceUp = $('#provinceUp');
+        page.dialogs.elements.districtUp = $('#districtUp');
+        page.dialogs.elements.wardUp = $('#wardUp');
+        page.dialogs.elements.addressUp = $('#addressUp');
+
+        page.dialogs.elements.btnCreateCustomer = $('#btnCreateCustomer');
+        page.dialogs.elements.btnUpdateCustomer = $('#btnUpdateCustomer');
+        page.elements.btnDeposit = $('#btnDeposit');
+
+        page.dialogs.elements.modalUpdate = $('#modalUpdate');
+        page.dialogs.elements.modaldetailCustomer = $('#modalDetail');
+
+        page.dialogs.elements.modalTransfer = $("#modalTransfer");
+        page.dialogs.elements.frmTransfer = $("#frmTransfer");
+        page.dialogs.elements.senderId = $("#senderId");
+        page.dialogs.elements.senderName = $("#senderName");
+        page.dialogs.elements.senderPhone = $("#senderPhone");
+        page.dialogs.elements.senderBalance = $("#senderBalance");
+        page.dialogs.elements.recipientTrf = $("#recipientTrf");
+        page.dialogs.elements.transferAmountTrf = $("#transferAmountTrf");
+        page.dialogs.elements.feesTrf = $("#feesTrf");
+        page.dialogs.elements.transactionAmountTrf = $("#transactionAmountTrf");
+        page.dialogs.elements.btnTransfer = $("#btnTransfer");
+
+
+        page.dialogs.elements.wrapper = $("section .wrapper");
+        page.dialogs.elements.productName = $("#productName");
+        page.dialogs.elements.description = $("#description");
+        page.dialogs.elements.imageFile = $("#imageFile");
+        page.dialogs.elements.wrapperContent = $("section .wrapper .content");
+        page.dialogs.elements.imagePreview = $("section .image-preview");
+        page.dialogs.elements.imagePreviewCanvas = $("section .image-preview canvas");
+        page.dialogs.elements.canvas = $("#canvas");
+        page.dialogs.elements.context = page.dialogs.elements.canvas[0].getContext('2d');
+        page.dialogs.elements.imagePreviewCanvas.css("display", "none");
+        page.dialogs.elements.divImagePreview = $("#modalCreateCustomer div.image-preview, div.file-name");
+
+        page.dialogs.elements.imageFileUp = $("#imageFileUp");
+        page.dialogs.elements.imagePreviewCanvasUp = $("section .image-preview #canvasUp");
+        page.dialogs.elements.canvasUp = $("#canvasUp");
+        page.dialogs.elements.contextUp = page.dialogs.elements.canvasUp[0].getContext('2d');
+        page.dialogs.elements.imagePreviewCanvasUp.css("display", "none");
+        page.dialogs.elements.divImagePreviewUp = $("#modalUpdateCustomer div.image-preview, div.file-name");
+
+        page.dialogs.elements.btnClearImagePreview = $(".clear-image-preview i");
+
+
+        page.dialogs.elements.btnUpdateCustomer.on('click', () => {
+            page.dialogs.commands.doUpdate();
+        })
+
+
+        page.dialogs.commands.doCreate = () => {
+            let fullName = page.dialogs.elements.fullNameCre.val();
+            let email = page.dialogs.elements.emailCre.val();
+            let phone = page.dialogs.elements.phoneCre.val();
+            let provinceId = page.dialogs.elements.provinceCre.val();
+            let provinceName = page.dialogs.elements.provinceCre.find("option:selected").text();
+            let districtId = page.dialogs.elements.districtCre.val();
+            let districtName = page.dialogs.elements.districtCre.find("option:selected").text();
+            let wardId = page.dialogs.elements.wardCre.val();
+            let wardName = page.dialogs.elements.wardCre.find("option:selected").text();
+            let address = page.dialogs.elements.addressCre.val();
+
+            let avatarFile = page.dialogs.elements.imageFile[0].files[0];
+
+            let formData = new FormData();
+            formData.append("fullName", fullName);
+            formData.append("email", email);
+            formData.append("phone", phone);
+            formData.append("provinceId", provinceId);
+            formData.append("provinceName", provinceName);
+            formData.append("districtId", districtId);
+            formData.append("districtName", districtName);
+            formData.append("wardId", wardId);
+            formData.append("wardName", wardName);
+            formData.append("address", address);
+            formData.append("file", avatarFile);
+
+            $.ajax({
+                type: 'POST',
+                contentType: false,
+                cache: false,
+                processData: false,
+                url: page.urls.doCreateWithAvatar,
+                data: formData
+            })
+                .done((data) => {
+                    customer = data;
+                    locationRegion = customer.locationRegion;
+                    customerAvatar = customer.customerAvatar;
+                    let str = renderCustomer(customer, customerAvatar, locationRegion);
+                    $('#tbCustomer tbody').prepend(str);
+
+                    Swal.fire({
+                        position: 'top-end',
+                        icon: 'success',
+                        title: 'Your work has been saved',
+                        showConfirmButton: false,
+                        timer: 2000
+                    })
+
+                    page.dialogs.elements.modalCreateCustomer.modal('hide');
+
+
+                    $('.edit').off('click');
+                    $('.deposit').off('click');
+                    $('.delete').off('click');
+
+                    addEventEditClick();
+                    addEventDetailClick();
+                    addDeletedEven();
+
+
+                })
+                .fail((error) => {
+                    console.log(error);
+                })
+        }
+
+        page.dialogs.commands.doUpdate = () => {
+            let fullName = page.dialogs.elements.fullNameUp.val();
+            let email = page.dialogs.elements.emailUp.val();
+            let phone = page.dialogs.elements.phoneUp.val();
+            let provinceId = page.dialogs.elements.provinceUp.val();
+            let provinceName = page.dialogs.elements.provinceUp.find("option:selected").text();
+            let districtId = page.dialogs.elements.districtUp.val();
+            let districtName = page.dialogs.elements.districtUp.find("option:selected").text();
+            let wardId = page.dialogs.elements.wardUp.val();
+            let wardName = page.dialogs.elements.wardUp.find("option:selected").text();
+            let address = page.dialogs.elements.addressUp.val();
+
+            let avatarFile = page.dialogs.elements.imageFileUp[0].files[0];
+
+            let formData = new FormData();
+            formData.append("fullName", fullName);
+            formData.append("email", email);
+            formData.append("phone", phone);
+            formData.append("provinceId", provinceId);
+            formData.append("provinceName", provinceName);
+            formData.append("districtId", districtId);
+            formData.append("districtName", districtName);
+            formData.append("wardId", wardId);
+            formData.append("wardName", wardName);
+            formData.append("address", address);
+            formData.append("file", avatarFile);
+
+            $.ajax({
+                type: 'PATCH',
+                contentType: false,
+                cache: false,
+                processData: false,
+                url: page.urls.doUpdateWithAvatar + '/' + currentCustomerId,
+                data: formData
+            })
+                .done((data) => {
+                    console.log(data)
+                    customer = data;
+                    locationRegion = customer.locationRegion;
+                    customerAvatar = customer.customerAvatar;
+                    let str = renderCustomer(customer, customerAvatar, locationRegion);
+                    $('#tr_' + currentCustomerId).replaceWith(str);
+
+                    Swal.fire({
+                        position: 'top-end',
+                        icon: 'success',
+                        title: 'Your work has been saved',
+                        showConfirmButton: false,
+                        timer: 2000
+                    })
+
+                    page.dialogs.elements.modalUpdateCustomer.modal('hide');
+
+
+                    $('.edit').off('click');
+                    $('.deposit').off('click');
+                    $('.delete').off('click');
+
+                    addEventEditClick();
+                    addEventDetailClick();
+                    addDeletedEven();
+
+                })
+                .fail((error) => {
+                    console.log(error);
+                })
+        }
+
+
+        function addEventEditClick() {
+            $('.edit').on('click', function() {
+                let customerId = $(this).data('id');
+
+                page.loadData.findCustomerById(customerId).then((data) => {
+                    customer = data;
+                    locationRegion = customer.locationRegion;
+                    customerAvatar = customer.customerAvatar;
+                    currentCustomerId = customerId;
+                    page.dialogs.elements.fullNameUp.val(customer.fullName);
+                    page.dialogs.elements.emailUp.val(customer.email);
+                    page.dialogs.elements.phoneUp.val(customer.phone);
+                    page.dialogs.elements.provinceUp.val(locationRegion.provinceId);
+
+                    page.loadData.getAllDistrictsByProvinceId(locationRegion.provinceId, page.dialogs.elements.districtUp).then(() => {
+                        page.dialogs.elements.districtUp.val(locationRegion.districtId);
+
+                        page.loadData.getAllWardsByDistrictId(locationRegion.districtId, page.dialogs.elements.wardUp).then(() => {
+                            page.dialogs.elements.wardUp.val(locationRegion.wardId);
+                        });
+                    });
+
+                    page.dialogs.elements.addressUp.val(locationRegion.address);
+
+                    page.dialogs.commands.loadImageToCanvas(null, "URL", customerAvatar.fileUrl);
+
+                    page.dialogs.elements.modalUpdateCustomer.modal('show');
+                })
+                    .catch((error) => {
+                        alert("Kokyaku wa sonzai shimasen");
+                    });
+            })
+        }
+
+
+        function renderCustomer(customer, avatar, locationRegion) {
+            let image_thumbnail = `
+                ${AppBase.API_CLOUDINARY}/${AppBase.SCALE_IMAGE_W_80_H_80_Q_100}/${avatar.fileFolder}/${avatar.fileName}
+            `;
+            return `
+                    <tr id="tr_${customer.id}">
+                        <td>${customer.id}</td>
+                        <td>
+                            <img src="${image_thumbnail}" alt="">
+                        </td>
+                        <td>${customer.fullName}</td>
+                        <td>${customer.email}</td>
+                        <td>${customer.phone}</td>
+                        <td>${locationRegion.provinceName}</td>
+                        <td>${locationRegion.districtName}</td>
+                        <td>${locationRegion.wardName}</td>
+                        <td>${locationRegion.address}</td>
+
+                        <td>
+                            <button class="btn btn-outline-secondary edit" data-id="${customer.id}">
+                                <i class="fas fa-user-edit"></i>
+                            </button>
+                        </td>
+                        <td>
+                            <button class="btn btn-outline-primary btn_detail" data-id="${customer.id}">
+                                <i class="fas fa-id-card"></i>
+                            </button>
+                        </td>
+
+                        <td>
+                            <button class="btn btn-outline-danger btn_deleted" data-id="${customer.id}">
+                                <i class="fas fa-user-slash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+        }
+        function addEventDetailClick() {
+            $('.btn_detail').on('click', function() {
+                $('#modalDetail #modal_body').empty();
+                let customerId = $(this).data('id');
+
+                page.loadData.findCustomerById(customerId).then((data) => {
+
+                    customer = data;
+                    locationRegion = customer.locationRegion;
+                    customerAvatar = customer.customerAvatar;
+                    let str = renderDetailCustomer(customer, locationRegion,customerAvatar);
+
+                    $('#modalDetail #modal_body').prepend(str);
+                    console.log("a")
+                    page.dialogs.elements.modaldetailCustomer.modal('show');
+                })
+                    .catch((error) => {
+                        alert("Kokyaku wa sonzai shimasen");
+                    });
+            })
+        }
+
+
+        function addDeletedEven() {
+            $('.btn_deleted').off('click');
+            $('.btn_deleted').on('click', function () {
+                let customerId = $(this).data('id');
+                let customer = page.loadData.findCustomerById(customerId)
+                if (customer) {
+                    Swal.fire({
+                        title: 'Are you sure?',
+// text: "You won't be able to revert this!",
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#3085d6',
+                        cancelButtonColor: '#d33',
+                        confirmButtonText: 'Yes, delete it!'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            $.ajax({
+                                headers: {
+                                    'accept': 'application/json',
+                                    'content-type': 'application/json'
+                                },
+                                type: "DELETE",
+                                url:  'http://localhost:19200/api/customers/delete/'+ customerId,
+                                data: JSON.stringify(),
+                            })
+                                .done((data) => {
+                                    $('#tr_' + customerId).remove();
+                                    customer = {};
+                                    Swal.fire({
+                                        icon: 'success',
+                                        title: 'Xóa thành công',
+                                        showConfirmButton: false,
+                                        timer: 2000
+                                    })
+                                });
+                        }
+                    })
+                }
+            });
+        }
+
+        function renderDetailCustomer (customer, locationRegion, customerAvatar){
+            return`
+                <div class="col-lg-5">
+                    <img src="${customerAvatar.fileUrl}" alt="avatar img">
+                </div>
+                <div class="col-lg-5">
+                    <p><label>Fullname: </label>${customer.fullName}</p>
+                    <p><label>Email: </label>${customer.email}</p>
+                    <p><label>Phone:</label>${customer.phone}</p>
+                    <p><label>provinceName:</label>${locationRegion.provinceName}</p>
+                    <p><label>districtName:</label>${locationRegion.districtName}</p>
+                    <p><label>wardName:</label>${locationRegion.wardName}</p>
+                    <p><label>address:</label>${locationRegion.address}</p>
+                </div>
+                `
+        }
+
+        page.loadData.findCustomerById = (id) => {
+            return $.ajax({
+                type: 'GET',
+                url: page.urls.findCustomerById + '/' + id
+            })
+                .done((data) => {
+
+                })
+                .fail((error) => {
+                    console.log(error);
+                })
+        }
+
+        page.loadData.getAllCustomers = () => {
+            $.ajax({
+                type: 'GET',
+                url: page.urls.getAllCustomers
+            })
+                .done((data) => {
+                    $.each(data, (i, item) => {
+                        customer = item;
+                        locationRegion = customer.locationRegion;
+                        customerAvatar = customer.customerAvatar;
+                        let str = renderCustomer(customer, customerAvatar, locationRegion);
+                        $('#tbCustomer tbody').prepend(str);
+                    })
+
+                    addEventEditClick();
+                    addEventDetailClick();
+                    addDeletedEven();
+
+
+                    // page.commands.addEventTransferClick();
+
+                })
+                .fail((error) => {
+                    console.log(error);
+                })
+        }
+
+
+        page.loadData.getAllProvinces = () => {
+            return $.ajax({
+                type: 'GET',
+                url: page.urls.getAllProvinces
+            })
+            .done((data) => {
+                let provinces = data.results;
+
+                $.each(provinces, (i, item) => {
+                    let str = `<option value="${item.province_id}">${item.province_name}</option>`;
+
+                    page.dialogs.elements.provinceCre.append(str);
+                    page.dialogs.elements.provinceUp.append(str);
+                })
+            })
+            .fail((jqXHR) => {
+                console.log(jqXHR)
+            })
+        }
+
+        page.loadData.getAllDistrictsByProvinceId = (provinceId, elem) => {
+            return $.ajax({
+                type: 'GET',
+                url: page.urls.getAllDistricts + '/' + provinceId
+            })
+                .done((data) => {
+                    elem.empty();
+
+                    let districts = data.results;
+
+                    $.each(districts, (i, item) => {
+                        let str = `<option value="${item.district_id}">${item.district_name}</option>`;
+
+                        elem.append(str);
+                    })
+                })
+                .fail((jqXHR) => {
+                    console.log(jqXHR)
+                })
+        }
+
+        page.loadData.getAllWardsByDistrictId = (districtId, elem) => {
+            return $.ajax({
+                type: 'GET',
+                url: page.urls.getAllWards + '/' + districtId
+            })
+                .done((data) => {
+                    elem.empty();
+                    let wards = data.results;
+
+                    $.each(wards, (i, item) => {
+                        let str = `<option value="${item.ward_id}">${item.ward_name}</option>`;
+
+                        elem.append(str);
+                    })
+                })
+                .fail((jqXHR) => {
+                    console.log(jqXHR)
+                })
+        }
+
+        page.dialogs.commands.loadImageToCanvas = (imageFile, fileType, imageUrl) => {
+            page.dialogs.elements.imagePreviewCanvas.css("display", "");
+            page.dialogs.elements.wrapper.addClass("active");
+            page.dialogs.elements.wrapperContent.css("opacity", 0);
+
+            page.dialogs.elements.imagePreviewCanvasUp.css("display", "");
+            page.dialogs.elements.wrapper.addClass("active");
+            page.dialogs.elements.wrapperContent.css("opacity", 0);
+
+            let imageObj = new Image();
+
+            imageObj.onload = function () {
+                page.dialogs.elements.context.canvas.width = imageObj.width;
+                page.dialogs.elements.context.canvas.height = imageObj.height;
+                page.dialogs.elements.context.drawImage(imageObj, 0, 0, imageObj.width, imageObj.height);
+
+                page.dialogs.elements.contextUp.canvas.width = 445;
+                page.dialogs.elements.contextUp.canvas.height = 345;
+                page.dialogs.elements.contextUp.drawImage(imageObj, 0, 0, 445, 345);
+            };
+
+            if (fileType === "BINARY") {
+                imageObj.src = URL.createObjectURL(imageFile);
+            }
+            else {
+                imageObj.src = imageUrl;
+            }
+        }
+
+        page.dialogs.commands.changeImagePreview = (elem) => {
+            let imageFile = elem[0].files[0];
+
+            if (imageFile) {
+                let reader = new FileReader();
+
+                reader.readAsDataURL(imageFile);
+
+                reader.onload = function (e) {
+                    if (e.target.readyState === FileReader.DONE) {
+                        page.dialogs.commands.loadImageToCanvas(imageFile, "BINARY", null);
+                    }
+                }
+            }
+            else {
+                page.dialogs.elements.clearImagePreview();
+            }
+        }
+
+        page.dialogs.commands.clearImagePreview = () => {
+            page.dialogs.elements.imageFile.val("");
+            page.dialogs.elements.imagePreviewCanvas.css("display", "none");
+            page.dialogs.elements.wrapper.removeClass("active");
+            page.dialogs.elements.wrapperContent.css("opacity", 1);
+
+            // page.dialogs.elements.imageFileUp.val("");
+            // page.dialogs.elements.imagePreviewCanvasUp.css("display", "");
+            // page.dialogs.elements.wrapper.removeClass("active");
+            // page.dialogs.elements.wrapperContent.css("opacity", 0);
+        }
+
+        page.commands.handleChangeProvince = (elemProvince, elemDistrict, elemWard) => {
+            elemProvince.on('change', function () {
+                let provinceId = $(this).val();
+
+                page.loadData.getAllDistrictsByProvinceId(provinceId, elemDistrict).then(() => {
+                    let districtId = elemDistrict.val();
+
+                    page.loadData.getAllWardsByDistrictId(districtId, elemWard);
+                });
+            })
+        }
+
+        page.commands.handleChangeDistrict = (elemDistrict, elemWard) => {
+            elemDistrict.on('change', function () {
+                let districtId = $(this).val();
+
+                page.loadData.getAllWardsByDistrictId(districtId, elemWard);
+            })
+        }
+
+        $('#frmCreateCustomer').validate({
+            rules: {
+                fullNameCre: {
+                    required: true,
+                },
+                emailCre: {
+                    required: true,
+                },
+                phoneCre: {
+                    required: true,
+                },
+                addressCre: {
+                    required: true,
+                },
+                wardCre:{
+                    required: true,
+                },
+                districtCre:{
+                    required: true,
+                },
+                provinceCre:{
+                    required: true,
+                }
+            },
+            messages: {
+                fullNameCre: {
+                    required: 'Full name is required'
+                },
+                emailCre: {
+                    required: 'Email is required'
+                },
+                phoneCre: {
+                    required: "Phone number is required."
+                },
+                addressCre: {
+                    required: "Address is required."
+                },
+                wardCre:{
+                    required: "Ward is required"
+                },
+                districtCre:{
+                    required: "District is required"
+                },
+                provinceCre:{
+                    required: "Province is required"
+                }
+            },
+            submitHandler: function () {
+                page.dialogs.commands.doCreate();
+            }
+        });
+
+        $('#btnCreateCustomer').on('click' , () => {
+            $('#frmCreateCustomer').trigger('submit');
+        })
+
+        $('#frmUpdateCustomer').validate({
+            rules: {
+                fullNameUp: {
+                    required: true,
+                },
+                emailUp: {
+                    required: true,
+                },
+                phoneUp: {
+                    required: true,
+                },
+                addressUp: {
+                    required: true,
+                },
+                wardUp:{
+                    required: true,
+                },
+                districtUp:{
+                    required: true,
+                },
+                provinceUp:{
+                    required: true,
+                }
+            },
+            messages: {
+                fullNameUp: {
+                    required: 'Full name is required'
+                },
+                emailUp: {
+                    required: 'Email is required'
+                },
+                phoneUp: {
+                    required: "Phone number is required."
+                },
+                addressUp: {
+                    required: "Address is required."
+                },
+                wardUp:{
+                    required: "Ward is required"
+                },
+                districtUp:{
+                    required: "District is required"
+                },
+                provinceUp:{
+                    required: "Province is required"
+                }
+            },
+            submitHandler: function () {
+                page.dialogs.commands.doUpdate();
+            }
+        });
+
+        $('#btnUpdateCustomer').on('click' , () => {
+            $('#frmUpdateCustomer').trigger('submit');
+        })
+
+        page.commands.loadData = () => {
+            page.loadData.getAllCustomers();
+
+            page.loadData.getAllProvinces().then(() => {
+                let provinceId = page.dialogs.elements.provinceCre.val();
+
+                page.loadData.getAllDistrictsByProvinceId(provinceId, page.dialogs.elements.districtCre).then(() => {
+                    let districtId = page.dialogs.elements.districtCre.val();
+
+                    page.loadData.getAllWardsByDistrictId(districtId, page.dialogs.elements.wardCre);
+                });
+            });
+        }
+
+        page.initializeControlEvent = () => {
+
+            page.dialogs.elements.divImagePreview.on('click', () => {
+                page.dialogs.elements.imageFile.trigger('click');
+            })
+
+            page.dialogs.elements.divImagePreviewUp.on('click', () => {
+                page.dialogs.elements.imageFileUp.trigger('click');
+            })
+
+            page.dialogs.elements.imageFile.on("change", function () {
+                page.dialogs.commands.changeImagePreview(page.dialogs.elements.imageFile);
+            });
+
+            page.dialogs.elements.imageFileUp.on("change", function () {
+                page.dialogs.commands.changeImagePreview(page.dialogs.elements.imageFileUp);
+            });
+
+            page.dialogs.elements.btnClearImagePreview.on('click', () => {
+                page.dialogs.commands.clearImagePreview();
+            })
+
+            page.elements.btnShowCreateModal.on('click', () => {
+                page.dialogs.elements.modalCreateCustomer.modal('show');
+            })
+
+            page.dialogs.elements.btnCreateCustomer.on('click', function () {
+                page.dialogs.commands.doCreate();
+            });
+
+
+            page.commands.handleChangeProvince(page.dialogs.elements.provinceCre, page.dialogs.elements.districtCre, page.dialogs.elements.wardCre);
+
+            page.commands.handleChangeProvince(page.dialogs.elements.provinceUp, page.dialogs.elements.districtUp, page.dialogs.elements.wardUp);
+
+            page.commands.handleChangeDistrict(page.dialogs.elements.districtCre, page.dialogs.elements.wardCre);
+
+            page.commands.handleChangeDistrict(page.dialogs.elements.districtUp, page.dialogs.elements.wardUp);
+        }
+
+        $(() => {
+            page.commands.loadData();
+
+            page.initializeControlEvent();
+        })
+
+
+    </script>
+
+</body>
+</html>
